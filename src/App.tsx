@@ -1,23 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Canvas, useFrame } from '@react-three/fiber'
 import {
   ArrowUpRight,
-  ChevronLeft,
-  ChevronRight,
-  Quote,
-  Star,
 } from 'lucide-react'
+import * as THREE from 'three'
 
 const chatUrl = 'mailto:keieszero2412@gmail.com'
-const marqueeImages = [
-  'https://motionsites.ai/assets/hero-space-voyage-preview-eECLH3Yc.gif',
-  'https://motionsites.ai/assets/hero-portfolio-cosmic-preview-BpvWJ3Nc.gif',
-  'https://motionsites.ai/assets/hero-velorah-preview-CJNTtbpd.gif',
-  'https://motionsites.ai/assets/hero-asme-preview-B_nGDnTP.gif',
-  'https://motionsites.ai/assets/hero-transform-data-preview-Cx5OU29N.gif',
-  'https://motionsites.ai/assets/hero-aethera-preview-DknSlcTa.gif',
-  'https://motionsites.ai/assets/hero-orbit-web3-preview-BXt4OttD.gif',
-  'https://motionsites.ai/assets/hero-nexora-preview-cx5HmUgo.gif',
-]
 
 const useInViewAnimation = <T extends HTMLElement>() => {
   const ref = useRef<T>(null)
@@ -40,6 +28,102 @@ const useInViewAnimation = <T extends HTMLElement>() => {
   }, [])
 
   return { ref, isVisible }
+}
+
+const periodicRows: Array<Array<string | null>> = [
+  ['H', ...Array(16).fill(null), 'He'],
+  ['Li', 'Be', ...Array(10).fill(null), 'B', 'C', 'N', 'O', 'F', 'Ne'],
+  ['Na', 'Mg', ...Array(10).fill(null), 'Al', 'Si', 'P', 'S', 'Cl', 'Ar'],
+  ['K', 'Ca', 'Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn', 'Ga', 'Ge', 'As', 'Se', 'Br', 'Kr'],
+  ['Rb', 'Sr', 'Y', 'Zr', 'Nb', 'Mo', 'Tc', 'Ru', 'Rh', 'Pd', 'Ag', 'Cd', 'In', 'Sn', 'Sb', 'Te', 'I', 'Xe'],
+  ['Cs', 'Ba', 'La', 'Hf', 'Ta', 'W', 'Re', 'Os', 'Ir', 'Pt', 'Au', 'Hg', 'Tl', 'Pb', 'Bi', 'Po', 'At', 'Rn'],
+  ['Fr', 'Ra', 'Ac', 'Rf', 'Db', 'Sg', 'Bh', 'Hs', 'Mt', 'Ds', 'Rg', 'Cn', 'Nh', 'Fl', 'Mc', 'Lv', 'Ts', 'Og'],
+  [null, null, null, 'La', 'Ce', 'Pr', 'Nd', 'Pm', 'Sm', 'Eu', 'Gd', 'Tb', 'Dy', 'Ho', 'Er', 'Tm', 'Yb', 'Lu'],
+  [null, null, null, 'Ac', 'Th', 'Pa', 'U', 'Np', 'Pu', 'Am', 'Cm', 'Bk', 'Cf', 'Es', 'Fm', 'Md', 'No', 'Lr'],
+]
+
+const periodicElements = periodicRows.flatMap((row, rowIndex) =>
+  row.flatMap((symbol, columnIndex) => symbol ? [{ symbol, row: rowIndex + 1, column: columnIndex + 1 }] : []),
+)
+
+const ThreeParticleField = () => {
+  const pointsRef = useRef<THREE.Points>(null)
+  const particles = Array.from({ length: 110 }, (_, index) => {
+    const angle = index * 2.39996
+    const radius = 1.5 + (index % 11) * 0.65
+    return [Math.cos(angle) * radius, ((index * 17) % 20) - 10, Math.sin(angle) * radius] as const
+  })
+  const positions = new Float32Array(particles.flat())
+
+  useFrame(({ clock, pointer }) => {
+    if (!pointsRef.current) return
+    pointsRef.current.rotation.y = clock.elapsedTime * 0.025 + pointer.x * 0.08
+    pointsRef.current.rotation.x = Math.sin(clock.elapsedTime * 0.15) * 0.04 + pointer.y * 0.04
+  })
+
+  return (
+    <points ref={pointsRef}>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+      </bufferGeometry>
+      <pointsMaterial color="#73e9f3" size={0.045} sizeAttenuation transparent opacity={0.7} />
+    </points>
+  )
+}
+
+const ThreeSceneBackground = () => (
+  <div className="absolute inset-0 opacity-70" aria-hidden="true">
+    <Canvas
+      camera={{ position: [0, 0, 8], fov: 55 }}
+      dpr={[1, 1.5]}
+      gl={{ alpha: true, antialias: true }}
+      style={{ pointerEvents: 'none' }}
+    >
+      <ThreeParticleField />
+    </Canvas>
+  </div>
+)
+
+const PeriodicTableBackground = () => {
+  const [assembled, setAssembled] = useState(false)
+  useEffect(() => {
+    let timer = 0
+    const animate = () => {
+      setAssembled(false)
+      timer = window.setTimeout(() => setAssembled(true), 3500)
+    }
+    animate()
+    const loop = window.setInterval(animate, 18000)
+    return () => {
+      window.clearTimeout(timer)
+      window.clearInterval(loop)
+    }
+  }, [])
+
+  return (
+    <div className="periodic-background" aria-hidden="true">
+      <ThreeSceneBackground />
+      <div className={`periodic-table ${assembled ? 'periodic-table-assembled' : ''}`}>
+        {periodicElements.map((element, index) => (
+          <span
+            key={element.symbol}
+            className="periodic-element"
+            style={{
+              gridColumn: element.column,
+              gridRow: element.row,
+              '--scatter-x': `${((index * 47) % 120) - 60}px`,
+              '--scatter-y': `${((index * 71) % 100) - 50}px`,
+              '--scatter-rotate': `${((index * 29) % 24) - 12}deg`,
+              animationDelay: `${(index % 12) * 0.08}s`,
+            } as React.CSSProperties}
+          >
+            <b>{element.symbol}</b>
+            <small>{index + 1}</small>
+          </span>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 const fade = (visible: boolean, delay = 0) => ({
@@ -67,70 +151,39 @@ const Hero = () => {
   const { ref, isVisible } = useInViewAnimation<HTMLElement>()
   return (
     <>
-      <section id="about" ref={ref} className="mx-auto flex max-w-[440px] flex-col px-6 pt-12 md:pt-16">
-        <p {...fade(isVisible, 0.1)} className="font-display mb-4 text-[32px] font-semibold tracking-tight text-[#051A24] md:text-[40px] lg:text-[44px]">Khánh Trần</p>
-        <p {...fade(isVisible, 0.2)} className="font-mono text-xs text-[#051A24] md:text-sm">Data Analysis, AI &amp; Front-end Development</p>
-        <h1 {...fade(isVisible, 0.3)} className="mt-5 whitespace-nowrap text-[32px] leading-[1.1] tracking-tight text-[#0D212C] md:text-[40px] lg:text-[44px]">
-          Building with <span className="font-display">data, AI,</span><br />
-          and the <span className="font-display">web.</span>
-        </h1>
-        <div {...fade(isVisible, 0.4)} className="mt-5 flex flex-col gap-6 text-sm leading-relaxed text-[#051A24] md:mt-6 md:text-base">
-          <p>I am an undergraduate student at Foreign Trade University with a strong interest in Data Analysis, AI and Front-end Development.</p>
-          <p>I am highly motivated to acquire new skills, apply my academic knowledge in practical settings, and contribute to impactful projects.</p>
-          <p>Currently based in Hanoi, Vietnam.</p>
+      <section id="about" ref={ref} className="mx-auto max-w-6xl px-6 pt-12 md:pt-16">
+        <div className="flex flex-col gap-8 md:flex-row md:items-start md:justify-between">
+          <div className="flex max-w-[440px] flex-col">
+            <p {...fade(isVisible, 0.1)} className="font-display mb-4 text-[32px] font-semibold tracking-tight text-white md:text-[40px] lg:text-[44px]">Khánh Trần</p>
+            <p {...fade(isVisible, 0.2)} className="font-mono text-xs text-[#BDEFF5] md:text-sm">Data Analysis, AI &amp; Front-end Development</p>
+          </div>
+          <span className="hidden md:block" aria-hidden="true" />
         </div>
-        <div {...fade(isVisible, 0.5)} className="mt-5 flex flex-col gap-3 sm:flex-row md:mt-6 md:gap-4">
-          <Button>Contact me</Button>
-          <Button variant="secondary" href="#projects">View projects</Button>
+        <div className="mt-12 grid gap-10 md:grid-cols-2 md:gap-16">
+          <div className="flex flex-col">
+            <h1 {...fade(isVisible, 0.3)} className="whitespace-nowrap text-[32px] leading-[1.1] tracking-tight text-white md:text-[40px] lg:text-[44px]">
+              Architecting solutions through <span className="font-display">data, AI,</span><br />
+              and <span className="font-display">web interfaces.</span>
+            </h1>
+            <div {...fade(isVisible, 0.5)} className="mt-8 flex flex-col gap-3 sm:flex-row md:gap-4">
+              <Button variant="secondary" href="#projects">View projects</Button>
+            </div>
+          </div>
+          <div>
+            <div {...fade(isVisible, 0.4)} className="flex flex-col gap-6 text-sm leading-relaxed text-[#E0EBF0] md:text-base">
+              <p>I am an undergraduate student at Foreign Trade University with a strong interest in Data Analysis, AI and Front-end Development.</p>
+              <p>I am highly motivated to acquire new skills, apply my academic knowledge in practical settings, and contribute to impactful projects.</p>
+              <p>Currently based in Hanoi, Vietnam.</p>
+            </div>
+            <nav {...fade(isVisible, 0.5)} aria-label="Contact information" className="mt-8 flex flex-wrap gap-x-5 gap-y-2 text-sm text-[#BDEFF5]">
+              <a href="mailto:keieszero2412@gmail.com">keieszero2412@gmail.com</a>
+              <a href="https://github.com/keieszero-2412" target="_blank" rel="noreferrer">GitHub</a>
+              <a href="https://www.linkedin.com/in/khanhtran2412/" target="_blank" rel="noreferrer">LinkedIn</a>
+            </nav>
+          </div>
         </div>
       </section>
-      <Marquee />
     </>
-  )
-}
-
-const Marquee = () => (
-  <div className="mt-16 mb-16 w-full overflow-hidden md:mt-20">
-    <div className="animate-marquee flex w-max">
-      {[...marqueeImages, ...marqueeImages].map((src, index) => (
-        <img key={`${src}-${index}`} src={src} alt="" className="mx-3 h-[280px] w-auto rounded-2xl object-cover shadow-lg md:h-[500px]" />
-      ))}
-    </div>
-  </div>
-)
-
-const TestimonialSection = () => {
-  const { ref, isVisible } = useInViewAnimation<HTMLElement>()
-  const parallaxRef = useRef<HTMLImageElement>(null)
-  useEffect(() => {
-    let frame = 0
-    const onScroll = () => {
-      cancelAnimationFrame(frame)
-      frame = requestAnimationFrame(() => {
-        if (parallaxRef.current) {
-          const rect = parallaxRef.current.getBoundingClientRect()
-          const offset = Math.max(-200, Math.min(200, (window.innerHeight / 2 - rect.top) * 0.12))
-          parallaxRef.current.style.transform = `translateY(${offset}px)`
-        }
-      })
-    }
-    window.addEventListener('scroll', onScroll, { passive: true })
-    onScroll()
-    return () => {
-      cancelAnimationFrame(frame)
-      window.removeEventListener('scroll', onScroll)
-    }
-  }, [])
-  return (
-    <section ref={ref} className="mx-auto flex max-w-2xl flex-col items-center px-6 py-12 text-center">
-      <Quote {...fade(isVisible, 0.1)} className="h-6 w-6 text-slate-900" />
-      <p {...fade(isVisible, 0.2)} className="mt-6 text-[32px] leading-[1.1] tracking-tight text-[#0D212C] md:text-[40px] lg:text-[44px]">Learning today to build <span className="font-display">impactful solutions</span> tomorrow.</p>
-      <p {...fade(isVisible, 0.3)} className="mt-5 text-sm italic text-[#273C46]">Khánh Trần · International Economics @ FTU Hanoi</p>
-      <div {...fade(isVisible, 0.4)} className="mt-10 flex items-center gap-7 text-2xl font-medium text-slate-900">
-        <span className="w-20">Python</span><span className="w-[83px]">React</span><span className="w-[110px]">SQL</span>
-      </div>
-      <img ref={parallaxRef} {...fade(isVisible, 0.5)} className="mt-12 w-full max-w-xs rounded-2xl shadow-lg" src="https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260330_103804_7aa5494f-4d5b-432e-9dc7-20715275f143.png&w=1280&q=85" alt="Chris Halaska" />
-    </section>
   )
 }
 
@@ -138,17 +191,33 @@ const PricingSection = () => {
   const { ref, isVisible } = useInViewAnimation<HTMLElement>()
   return (
     <section id="services" ref={ref} className="w-full px-6 py-12">
-      <div className="mx-auto grid max-w-4xl gap-8 md:justify-end md:grid-cols-2">
-        <div {...fade(isVisible, 0.1)} className="rounded-[40px] bg-[#051A24] px-10 pt-3 pb-10 text-[#F6FCFF] shadow-inset-dark md:pr-24">
-          <h2 className="mt-4 text-[22px] font-medium">Education</h2>
-          <p className="mt-4 text-sm leading-relaxed text-[#E0EBF0]">Foreign Trade University<br />International Economics</p>
-          <p className="mt-8 text-2xl">09/2024</p><p className="text-sm text-[#E0EBF0]">05/2028</p>
-          <div className="mt-8 flex flex-wrap gap-3"><Button>Contact me</Button></div>
+      <div className="mx-auto grid max-w-4xl items-stretch gap-8 md:grid-cols-[repeat(2,minmax(0,1fr))]">
+        <div {...fade(isVisible, 0.1)} className="neon-card neon-card-accent h-full min-w-0 px-8 py-8 text-[#F6FCFF] md:px-10 md:py-9">
+          <p className="card-kicker">Education</p>
+          <h2 className="mt-3 text-[22px] font-medium">Foreign Trade University</h2>
+          <p className="mt-2 text-sm leading-relaxed text-[#C7E0E6]">International Economics</p>
+          <p className="mt-8 text-sm font-medium text-[#73e9f3]">09/2024 - 05/2028</p>
         </div>
-        <div {...fade(isVisible, 0.2)} className="rounded-[40px] bg-white px-10 pt-3 pb-10 text-[#0D212C] shadow-card md:pr-24">
-          <h2 className="mt-4 text-[22px] font-medium">Professional Experience</h2>
-          <p className="mt-4 text-sm leading-relaxed">AI Tester · RemoBPO<br />Evaluating and annotating LLM outputs.</p>
-          <p className="mt-8 text-2xl">04/2026</p><p className="text-sm">08/2026</p>
+        <div {...fade(isVisible, 0.2)} className="neon-card neon-card-contrast h-full min-w-0 px-8 py-8 text-[#F6FCFF] md:px-10 md:py-9">
+          <p className="card-kicker">Professional Experience</p>
+          <div className="mt-5 space-y-6 text-sm leading-relaxed">
+            <div>
+              <p className="font-medium">IT Support · NAP CARE</p>
+              <p className="text-[#9bc2ca]">Hanoi, Vietnam</p>
+              <p className="mt-2 text-[#C7E0E6]">Installed and troubleshot computers, software, and printers.</p>
+              <p className="mt-2 font-medium text-[#73e9f3]">12/2023 - 08/2024</p>
+            </div>
+            <div>
+              <p className="font-medium">Academic Problem-Solving Consultant · NAP CARE</p>
+              <p className="mt-2 text-[#C7E0E6]">Advised students and supported them in solving academic exercises.</p>
+              <p className="mt-2 font-medium text-[#73e9f3]">12/2023 - 08/2024</p>
+            </div>
+            <div>
+              <p className="font-medium">AI Tester · RemoBPO</p>
+              <p className="mt-2 text-[#C7E0E6]">Evaluating and annotating LLM outputs.</p>
+              <p className="mt-2 font-medium text-[#73e9f3]">04/2026 - 08/2026</p>
+            </div>
+          </div>
           <div className="mt-8"><Button variant="tertiary" href="https://www.linkedin.com/in/khanhtran2412/">View LinkedIn</Button></div>
         </div>
       </div>
@@ -156,75 +225,172 @@ const PricingSection = () => {
   )
 }
 
-type Testimonial = { name: string; role: string; company: string; quote: string; avatar: string }
-const testimonials: Testimonial[] = [
-  { name: 'Programming Languages', role: 'Python · JavaScript', company: 'SQL · R', quote: 'Building practical tools and research workflows with a focus on clarity and reliable results.', avatar: 'https://images.pexels.com/photos/614810/pexels-photo-614810.jpeg?auto=compress&fit=crop&w=120&h=120' },
-  { name: 'Frameworks & Libraries', role: 'React · Node.js', company: 'Express', quote: 'Creating responsive front-end experiences and connecting them to robust backend services.', avatar: 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&fit=crop&w=120&h=120' },
-  { name: 'Tools & Technologies', role: 'Git · Docker', company: 'SQL · REST APIs', quote: 'Comfortable working across development tools, databases, APIs, and deployment workflows.', avatar: 'https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&fit=crop&w=120&h=120' },
-  { name: 'Core Competencies', role: 'Data Analysis', company: 'Problem Solving', quote: 'Curious, collaborative, and motivated to turn complex questions into useful outcomes.', avatar: 'https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&fit=crop&w=120&h=120' },
-  { name: 'AI Testing', role: 'LLM evaluation', company: 'RemoBPO', quote: 'Evaluating model outputs, identifying edge cases, and providing structured feedback for AI training.', avatar: 'https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&fit=crop&w=120&h=120' },
+const skills = [
+  ['Python', 'Programming language', 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg'],
+  ['JavaScript', 'Programming language', 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/javascript/javascript-original.svg'],
+  ['SQL', 'Data & databases', 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mysql/mysql-original.svg'],
+  ['R', 'Statistical computing', 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/r/r-original.svg'],
+  ['React', 'Front-end framework', 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg'],
+  ['Node.js', 'Backend runtime', 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nodejs/nodejs-original.svg'],
+  ['Express', 'Web framework', 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/express/express-original.svg'],
+  ['Git', 'Development tool', 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/git/git-original.svg'],
+  ['Docker', 'Development tool', 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/docker/docker-original.svg'],
+  ['Firebase', 'Development tool', 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/firebase/firebase-plain.svg'],
+  ['Supabase', 'Development tool', 'https://cdn.simpleicons.org/supabase/3ECF8E'],
+  ['REST APIs', 'Integration', 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/postman/postman-original.svg'],
+  ['Data Analysis', 'Core competency', 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/pandas/pandas-original.svg'],
+  ['AI Testing', 'Core competency', 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=800'],
+  ['Cybersecurity', 'Core competency', 'https://cdn.simpleicons.org/owasp/000000'],
 ]
 
-const TestimonialCarousel = () => {
-  const [index, setIndex] = useState(0)
-  const [paused, setPaused] = useState(false)
-  useEffect(() => {
-    if (paused) return
-    const timer = window.setInterval(() => setIndex((current) => current + 1), 3000)
-    return () => window.clearInterval(timer)
-  }, [paused])
-  const cards = [...testimonials, ...testimonials, ...testimonials]
+const SkillsMarquee = () => {
+  const { ref, isVisible } = useInViewAnimation<HTMLElement>()
+
   return (
-    <section className="w-full overflow-hidden py-20">
-      <div className="mx-auto flex max-w-4xl items-end justify-between px-6">
-        <h2 className="text-[32px] leading-[1.1] tracking-tight text-[#0D212C]">Technical <span className="font-display">skills</span></h2>
-        <div className="hidden items-center gap-2 text-sm md:flex">{[1, 2, 3, 4, 5].map((star) => <Star key={star} className="h-5 w-5 fill-black" />)}<span className="ml-1">Clutch 5/5</span></div>
-      </div>
-      <div className="relative mt-10" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
-        <div className="flex gap-6 transition-transform duration-700 ease-in-out" style={{ transform: `translateX(calc(-${index * 451.5}px + max(24px, (100vw - 1200px) / 2)))` }}>
-          {cards.map((item, cardIndex) => <article key={`${item.name}-${cardIndex}`} className="w-[calc(100vw-48px)] shrink-0 rounded-[32px] bg-white px-6 py-8 shadow-card md:w-[427.5px] md:rounded-[40px] md:pl-10 md:pr-24">
-            <Quote className="h-7 w-7 text-[#051A24]" />
-            <p className="mt-6 text-base leading-relaxed text-[#0D212C]">{item.quote}</p>
-            <div className="mt-8 flex items-center gap-3"><img className="h-12 w-12 rounded-full object-cover" src={item.avatar} alt="" /><div><p className="text-sm font-semibold">{item.name}</p><p className="text-xs text-[#273C46]">→ {item.role}, {item.company}</p></div></div>
-          </article>)}
+    <section id="skills" ref={ref} className="w-full px-6 py-20">
+      <div className="mx-auto max-w-[1200px] px-6">
+        <h2 {...fade(isVisible, 0.05)} className={`${fade(isVisible, 0.05).className} text-[32px] leading-[1.1] tracking-tight text-white md:text-[44px]`}>Technical <span className="font-display">skills</span></h2>
+        <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          {skills.map(([name, category, image], index) => {
+            const animation = fade(isVisible, 0.1 + index * 0.06)
+            return (
+              <article
+                key={name}
+                {...animation}
+                className={`${animation.className} skill-card relative aspect-square overflow-hidden rounded-2xl shadow-lg`}
+              >
+                <div className="absolute inset-0 bg-[#0b2b3a]" />
+                <img src={image} alt={`${name} icon`} className="skill-card-icon absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 object-contain md:h-24 md:w-24" />
+                <div className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-[#051A24] to-transparent" />
+                <div className="relative flex h-full flex-col justify-end p-4 text-white">
+                  <p className="text-[10px] uppercase tracking-wider text-[#E0EBF0]">{category}</p>
+                  <h3 className="mt-1 text-lg font-medium md:text-xl">{name}</h3>
+                </div>
+              </article>
+            )
+          })}
         </div>
-        <div className="mx-auto mt-8 flex max-w-4xl gap-3 px-6"><button aria-label="Previous testimonial" onClick={() => setIndex((current) => Math.max(0, current - 1))} className="rounded-full border border-[#0D212C]/20 p-3"><ChevronLeft /></button><button aria-label="Next testimonial" onClick={() => setIndex((current) => current + 1)} className="rounded-full border border-[#0D212C]/20 p-3"><ChevronRight /></button></div>
       </div>
     </section>
   )
 }
 
 const ProjectsSection = () => {
-  const projects = [
-    ['ZeroCoder Learning Platform', 'An online platform for Foreign Trade University students to review and prepare for programming courses.', 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&q=80&w=1200'],
-    ['Middle Income Trap Research', 'An empirical Cox Proportional Hazards survival model studying middle-income transitions.', 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=1200'],
+  const academicProjects = [
+    {
+      name: 'DeepMedSP AI',
+      description: 'An AI-agent tool supporting antibiotic prescription and monitoring for patients treated for bacterial infections, developed with Xanh Pon General Hospital and Hanoi University of Pharmacy.',
+      image: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&q=80&w=1200',
+      link: 'https://vnexpress.net/khoa-hoc-cong-nghe/cuoc-thi-sang-kien-khoa-hoc/san-pham/cong-cu-ho-tro-ke-don-va-giam-sat-su-dung-khang-sinh-tren-benh-nhan-dieu-tri-nhiem-khuan-bang-ai-agent-deepmedsp-ai-2118',
+    },
+    {
+      name: 'Middle Income Trap Research',
+      description: 'Cox Proportional Hazards survival analysis of the factors that help countries move through middle-income transitions from 2000 to 2026.',
+      image: '/middle-income-trap-research.png',
+      link: 'https://github.com/keieszero-2412/middle-income-trap-research',
+    },
+    {
+      name: 'Pharma Sales Data Analysis',
+      description: 'Python analysis of pharmaceutical sales by category, top-selling drugs, and seasonal trends for respiratory medication.',
+      image: '',
+      link: 'https://github.com/keieszero-2412/pharma-sales-data-analysis',
+    },
   ]
-  return <section id="projects" className="mx-auto max-w-[1200px] px-6 py-12">{projects.map(([name, description, image]) => {
+  const personalProjects = [
+    {
+      name: 'ZeroCoder Learning Platform',
+      description: 'A programming platform for FTU students with an in-browser Python IDE, autograding, AI hints, and Firebase account management.',
+      image: '/zerocoder-login.png',
+      link: 'https://github.com/keieszero-2412/zero_coder',
+    },
+    {
+      name: 'SportSpace',
+      description: 'A sports venue booking, facility management, and team matching application built with React, Firebase, and Supabase.',
+      image: '/sportspace.png',
+      link: 'https://github.com/keieszero-2412/sportspace',
+    },
+    {
+      name: 'Real-time Leaderboard Service',
+      description: 'A FastAPI and Redis backend with JWT authentication, score submission, real-time rankings, and player reports.',
+      image: '',
+      link: 'https://github.com/keieszero-2412/Real-time-Leaderboard-Service-Backend',
+    },
+    {
+      name: 'Cybersecurity Assessment & Monitoring',
+      description: 'Cybersecurity Project Lead responsible for security assessment, vulnerability reviews, access-control planning, monitoring workflows, stakeholder coordination, and remediation documentation.',
+      image: '',
+      link: 'mailto:keieszero2412@gmail.com?subject=Cybersecurity%20Project',
+    },
+  ]
+  const renderProject = (project: (typeof academicProjects)[number]) => {
     const { ref, isVisible } = useInViewAnimation<HTMLDivElement>()
-    return <div ref={ref} key={name} {...fade(isVisible)} className="mb-16 last:mb-0 md:mb-20"><div className="ml-20 md:ml-28"><h3 className="font-display text-2xl font-semibold text-[#051A24] md:text-3xl">{name}</h3><p className="mt-2 text-sm text-[#051A24]/70 md:text-base">{description}</p></div><img className="mt-6 w-full rounded-2xl object-cover shadow-lg" src={image} alt={name} /></div>
-  })}</section>
-}
-
-const PartnerSection = () => {
-  const [trail, setTrail] = useState<{ id: number; src: string; x: number; y: number; rotate: number }[]>([])
-  const lastSpawn = useRef(0)
-  const nextId = useRef(0)
-  const spawn = (event: React.MouseEvent<HTMLDivElement>) => {
-    const now = performance.now()
-    if (now - lastSpawn.current < 80) return
-    lastSpawn.current = now
-    const rect = event.currentTarget.getBoundingClientRect()
-    const item = { id: nextId.current++, src: marqueeImages[Math.floor(Math.random() * marqueeImages.length)], x: event.clientX - rect.left, y: event.clientY - rect.top, rotate: Math.random() * 20 - 10 }
-    setTrail((current) => [...current.slice(-12), item])
-    window.setTimeout(() => setTrail((current) => current.filter((entry) => entry.id !== item.id)), 1000)
+    return (
+      <article ref={ref} key={project.name} {...fade(isVisible)} className={`neon-card p-5 ${project.name === 'DeepMedSP AI' || project.name === 'Middle Income Trap Research' || project.name === 'Pharma Sales Data Analysis' ? 'neon-card-accent' : 'neon-card-contrast'}`}>
+        {project.image && <img className={`h-52 w-full rounded-2xl shadow-lg ${project.name === 'ZeroCoder Learning Platform' || project.name === 'Middle Income Trap Research' ? 'bg-[#151820] object-contain p-4' : 'object-cover'}`} alt={project.name} src={project.image} />}
+        <h3 className="mt-6 font-display text-2xl font-semibold text-white">{project.name}</h3>
+        <p className="mt-2 text-sm leading-relaxed text-[#C7E0E6]">{project.description}</p>
+        <a className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-[#73e9f3]" href={project.link} target="_blank" rel="noreferrer">View project <ArrowUpRight className="h-4 w-4" /></a>
+      </article>
+    )
   }
-  return <section className="w-full px-6 py-12"><div onMouseMove={spawn} className="relative mx-auto flex max-w-7xl flex-col items-center overflow-hidden rounded-[40px] bg-white py-48 shadow-card">{trail.map((item) => <img key={item.id} src={item.src} alt="" className="pointer-events-none absolute z-0 h-28 w-24 rounded-xl object-cover animate-trail" style={{ left: item.x, top: item.y, transform: `translate(-50%, -50%) rotate(${item.rotate}deg)` }} />)}<h2 className="relative z-10 mb-12 font-display text-[48px] text-[#0D212C] md:text-[64px] lg:text-[80px]">Let&apos;s connect</h2><Button className="relative z-10 gap-3 pl-2"><img className="h-10 w-10 rounded-full object-cover" src="https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&fit=crop&w=80&h=80" alt="" />Email Khánh</Button></div></section>
+  return (
+    <section id="projects" className="mx-auto max-w-[1200px] px-6 py-12">
+      <h2 className="text-[32px] leading-[1.1] tracking-tight text-white md:text-[44px]"><span className="font-display">Projects</span></h2>
+      <div className="mt-10 grid gap-10 md:grid-cols-[repeat(2,minmax(0,1fr))]">
+        <div className="min-w-0">
+          <h3 className="project-column-title project-column-title-academic mb-5 text-xl font-medium">Academic Projects</h3>
+          <div className="space-y-6">{academicProjects.map(renderProject)}</div>
+        </div>
+        <div className="min-w-0">
+          <h3 className="project-column-title project-column-title-personal mb-5 text-xl font-medium">Personal Projects</h3>
+          <div className="space-y-6">{personalProjects.map(renderProject)}</div>
+        </div>
+      </div>
+    </section>
+  )
 }
 
-const Footer = () => <><footer className="mx-auto flex max-w-[1200px] flex-col gap-10 px-6 py-12 md:flex-row md:items-start md:justify-between"><Button>Contact me</Button><div className="flex gap-10"><ArrowUpRight /><div className="flex flex-col gap-3 text-base text-[#051A24]"><a href="#services">Skills</a><a href="#projects">Projects</a><a href="#about">About</a></div><div className="flex flex-col gap-3 text-base text-[#051A24]"><a href="mailto:keieszero2412@gmail.com">Email</a><a href="https://www.linkedin.com/in/khanhtran2412/" target="_blank" rel="noreferrer">LinkedIn</a></div></div></footer><div className="mx-auto flex max-w-[1200px] justify-between px-6 py-4 text-sm text-[#051A24]"><span>Khánh Trần</span><span>Hanoi, Vietnam</span></div></>
+const CertificationsSection = () => {
+  const certifications = [
+    ['IELTS 7.5', 'British Council', '10/2023'],
+    ['Foundations: Data, Data, Everywhere', 'Google', '08/2026'],
+    ['Foundations of Cybersecurity', 'Google', '08/2026'],
+    ['Top 6 · SEA Quantathon', 'Competition achievement', '2026'],
+    ['Top 25 · Naver AI Hackathon', 'Competition achievement', '2025'],
+  ]
+  const awards = [
+    ['A Scholarship · Foreign Trade University', 'Academic achievement', ''],
+    ['First Prize · Provincial English Competition', 'Grade 9', ''],
+    ['Second Prize · Provincial English Competition', 'Grade 11', ''],
+    ['Second Prize · Provincial Informatics Competition', 'Grade 11', ''],
+    ['Third Prize · Provincial Chemistry Competition', 'Grade 12', ''],
+    ['Third Prize · Provincial Mathematics Competition', 'Grade 10', ''],
+  ]
+  const renderItem = ([name, issuer, date]: string[]) => (
+    <article key={`${name}-${issuer}-${date}`} className={`neon-card p-6 ${issuer === 'Academic achievement' || issuer.startsWith('Grade') ? 'neon-card-accent' : 'neon-card-contrast'}`}>
+      <p className="font-display text-2xl text-white">{name}</p>
+      <p className="mt-4 text-sm text-[#C7E0E6]">{issuer}</p>
+      {date && <p className="mt-2 text-sm font-medium text-[#73e9f3]">{date}</p>}
+    </article>
+  )
+  return (
+    <section id="certifications" className="mx-auto max-w-[1200px] px-6 py-12">
+      <div className="grid gap-10 md:grid-cols-2">
+        <div>
+          <h2 className="text-[32px] leading-[1.1] tracking-tight text-white md:text-[44px]"><span className="font-display">Certifications</span></h2>
+          <div className="mt-10 space-y-4">{certifications.map(renderItem)}</div>
+        </div>
+        <div>
+          <h2 className="text-[32px] leading-[1.1] tracking-tight text-white md:text-[44px]"><span className="font-display">Awards</span></h2>
+          <div className="mt-10 space-y-4">{awards.map(renderItem)}</div>
+        </div>
+      </div>
+    </section>
+  )
+}
 
-const BottomNav = () => <div className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-5 whitespace-nowrap rounded-full bg-white px-8 py-2 shadow-primary"><span className="font-display text-2xl font-semibold text-[#051A24]">K</span><Button>Contact me</Button></div>
+const Footer = () => <><footer className="mx-auto flex max-w-[1200px] justify-end gap-10 px-6 py-12"><div className="flex gap-10"><ArrowUpRight /><div className="flex flex-col gap-3 text-base text-[#051A24]"><a href="#skills">Skills</a><a href="#projects">Projects</a><a href="#about">About</a></div><div className="flex flex-col gap-3 text-base text-[#051A24]"><a href="mailto:keieszero2412@gmail.com">Email</a><a href="https://www.linkedin.com/in/khanhtran2412/" target="_blank" rel="noreferrer">LinkedIn</a></div></div></footer><div className="mx-auto flex max-w-[1200px] justify-between px-6 py-4 text-sm text-[#051A24]"><span>Khánh Trần</span><span>Hanoi, Vietnam</span></div></>
 
 export default function App() {
-  return <main><Hero /><TestimonialSection /><PricingSection /><TestimonialCarousel /><ProjectsSection /><PartnerSection /><Footer /><BottomNav /></main>
+  return <main><PeriodicTableBackground /><div className="periodic-content relative z-10"><Hero /><PricingSection /><ProjectsSection /><SkillsMarquee /><CertificationsSection /><Footer /></div></main>
 }
