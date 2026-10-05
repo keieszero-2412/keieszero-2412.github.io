@@ -48,6 +48,7 @@ const periodicElements = periodicRows.flatMap((row, rowIndex) =>
 
 const ThreeParticleField = () => {
   const pointsRef = useRef<THREE.Points>(null)
+  const meshRef = useRef<THREE.Group>(null)
   const particles = Array.from({ length: 110 }, (_, index) => {
     const angle = index * 2.39996
     const radius = 1.5 + (index % 11) * 0.65
@@ -59,24 +60,44 @@ const ThreeParticleField = () => {
     if (!pointsRef.current) return
     pointsRef.current.rotation.y = clock.elapsedTime * 0.025 + pointer.x * 0.08
     pointsRef.current.rotation.x = Math.sin(clock.elapsedTime * 0.15) * 0.04 + pointer.y * 0.04
+    if (meshRef.current) {
+      meshRef.current.rotation.x = clock.elapsedTime * 0.08 + pointer.y * 0.12
+      meshRef.current.rotation.y = clock.elapsedTime * 0.12 + pointer.x * 0.16
+      meshRef.current.position.y = Math.sin(clock.elapsedTime * 0.35) * 0.18
+    }
   })
 
   return (
-    <points ref={pointsRef}>
-      <bufferGeometry>
-        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
-      </bufferGeometry>
-      <pointsMaterial color="#73e9f3" size={0.045} sizeAttenuation transparent opacity={0.7} />
-    </points>
+    <>
+      <points ref={pointsRef}>
+        <bufferGeometry>
+          <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+        </bufferGeometry>
+        <pointsMaterial color="#73e9f3" size={0.07} sizeAttenuation transparent opacity={0.86} />
+      </points>
+      <group ref={meshRef} position={[2.5, 0.4, -1]}>
+        <mesh>
+          <icosahedronGeometry args={[1.35, 1]} />
+          <meshBasicMaterial color="#328aa8" wireframe transparent opacity={0.28} />
+        </mesh>
+        <mesh scale={0.68}>
+          <icosahedronGeometry args={[1.35, 1]} />
+          <meshBasicMaterial color="#73e9f3" wireframe transparent opacity={0.16} />
+        </mesh>
+      </group>
+    </>
   )
 }
 
 const ThreeSceneBackground = () => (
-  <div className="absolute inset-0 opacity-70" aria-hidden="true">
+  <div className="three-scene-background absolute inset-0 opacity-70" aria-hidden="true">
     <Canvas
       camera={{ position: [0, 0, 8], fov: 55 }}
       dpr={[1, 1.5]}
       gl={{ alpha: true, antialias: true }}
+      onCreated={({ scene }) => {
+        scene.background = null
+      }}
       style={{ pointerEvents: 'none' }}
     >
       <ThreeParticleField />
@@ -161,7 +182,7 @@ const Hero = () => {
         </div>
         <div className="mt-12 grid gap-10 md:grid-cols-2 md:gap-16">
           <div className="flex flex-col">
-            <h1 {...fade(isVisible, 0.3)} className="whitespace-nowrap text-[32px] leading-[1.1] tracking-tight text-white md:text-[40px] lg:text-[44px]">
+            <h1 {...fade(isVisible, 0.3)} className="max-w-full break-words text-[32px] leading-[1.1] tracking-tight text-white md:text-[40px] lg:text-[44px]">
               Architecting solutions through <span className="font-display">data, AI,</span><br />
               and <span className="font-display">web interfaces.</span>
             </h1>
@@ -276,6 +297,7 @@ const SkillsMarquee = () => {
 }
 
 const ProjectsSection = () => {
+  const { ref, isVisible } = useInViewAnimation<HTMLElement>()
   const academicProjects = [
     {
       name: 'DeepMedSP AI',
@@ -325,24 +347,24 @@ const ProjectsSection = () => {
   const renderProject = (project: (typeof academicProjects)[number]) => {
     const { ref, isVisible } = useInViewAnimation<HTMLDivElement>()
     return (
-      <article ref={ref} key={project.name} {...fade(isVisible)} className={`neon-card p-5 ${project.name === 'DeepMedSP AI' || project.name === 'Middle Income Trap Research' || project.name === 'Pharma Sales Data Analysis' ? 'neon-card-accent' : 'neon-card-contrast'}`}>
-        {project.image && <img className={`h-52 w-full rounded-2xl shadow-lg ${project.name === 'ZeroCoder Learning Platform' || project.name === 'Middle Income Trap Research' ? 'bg-[#151820] object-contain p-4' : 'object-cover'}`} alt={project.name} src={project.image} />}
-        <h3 className="mt-6 font-display text-2xl font-semibold text-white">{project.name}</h3>
+      <article ref={ref} key={project.name} {...fade(isVisible)} className={`neon-card px-3 py-4 ${project.name === 'DeepMedSP AI' || project.name === 'Middle Income Trap Research' || project.name === 'Pharma Sales Data Analysis' ? 'neon-card-accent' : 'neon-card-contrast'}`}>
+        {project.image && <img className={`h-44 w-full rounded-2xl shadow-lg ${project.name === 'ZeroCoder Learning Platform' || project.name === 'Middle Income Trap Research' ? 'bg-[#151820] object-contain p-3' : 'object-cover'}`} alt={project.name} src={project.image} />}
+        <h3 className="mt-5 font-display text-xl font-semibold text-white">{project.name}</h3>
         <p className="mt-2 text-sm leading-relaxed text-[#C7E0E6]">{project.description}</p>
         <a className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-[#73e9f3]" href={project.link} target="_blank" rel="noreferrer">View project <ArrowUpRight className="h-4 w-4" /></a>
       </article>
     )
   }
   return (
-    <section id="projects" className="mx-auto max-w-[1200px] px-6 py-12">
-      <h2 className="text-[32px] leading-[1.1] tracking-tight text-white md:text-[44px]"><span className="font-display">Projects</span></h2>
+    <section id="projects" ref={ref} className="mx-auto max-w-[1200px] px-6 py-12">
+      <h2 {...fade(isVisible, 0.05)} className="text-[32px] leading-[1.1] tracking-tight text-white md:text-[44px]"><span className="font-display">Projects</span></h2>
       <div className="mt-10 grid gap-10 md:grid-cols-[repeat(2,minmax(0,1fr))]">
         <div className="min-w-0">
-          <h3 className="project-column-title project-column-title-academic mb-5 text-xl font-medium">Academic Projects</h3>
+          <h3 {...fade(isVisible, 0.12)} className="project-column-title project-column-title-academic mb-5 text-xl font-medium">Academic Projects</h3>
           <div className="space-y-6">{academicProjects.map(renderProject)}</div>
         </div>
         <div className="min-w-0">
-          <h3 className="project-column-title project-column-title-personal mb-5 text-xl font-medium">Personal Projects</h3>
+          <h3 {...fade(isVisible, 0.18)} className="project-column-title project-column-title-personal mb-5 text-xl font-medium">Personal Projects</h3>
           <div className="space-y-6">{personalProjects.map(renderProject)}</div>
         </div>
       </div>
@@ -351,6 +373,7 @@ const ProjectsSection = () => {
 }
 
 const CertificationsSection = () => {
+  const { ref, isVisible } = useInViewAnimation<HTMLElement>()
   const certifications = [
     ['IELTS 7.5', 'British Council', '10/2023'],
     ['Foundations: Data, Data, Everywhere', 'Google', '08/2026'],
@@ -366,22 +389,22 @@ const CertificationsSection = () => {
     ['Third Prize · Provincial Chemistry Competition', 'Grade 12', ''],
     ['Third Prize · Provincial Mathematics Competition', 'Grade 10', ''],
   ]
-  const renderItem = ([name, issuer, date]: string[]) => (
-    <article key={`${name}-${issuer}-${date}`} className={`neon-card p-6 ${issuer === 'Academic achievement' || issuer.startsWith('Grade') ? 'neon-card-accent' : 'neon-card-contrast'}`}>
-      <p className="font-display text-2xl text-white">{name}</p>
-      <p className="mt-4 text-sm text-[#C7E0E6]">{issuer}</p>
+  const renderItem = ([name, issuer, date]: string[], index: number) => (
+    <article {...fade(isVisible, 0.12 + index * 0.06)} key={`${name}-${issuer}-${date}`} className={`neon-card px-4 py-5 ${issuer === 'Academic achievement' || issuer.startsWith('Grade') ? 'neon-card-accent' : 'neon-card-contrast'}`}>
+      <p className="font-display text-xl text-white">{name}</p>
+      <p className="mt-3 text-sm text-[#C7E0E6]">{issuer}</p>
       {date && <p className="mt-2 text-sm font-medium text-[#73e9f3]">{date}</p>}
     </article>
   )
   return (
-    <section id="certifications" className="mx-auto max-w-[1200px] px-6 py-12">
+    <section id="certifications" ref={ref} className="mx-auto max-w-[1200px] px-6 py-12">
       <div className="grid gap-10 md:grid-cols-2">
         <div>
-          <h2 className="text-[32px] leading-[1.1] tracking-tight text-white md:text-[44px]"><span className="font-display">Certifications</span></h2>
+          <h2 {...fade(isVisible, 0.05)} className="text-[32px] leading-[1.1] tracking-tight text-white md:text-[44px]"><span className="font-display">Certifications</span></h2>
           <div className="mt-10 space-y-4">{certifications.map(renderItem)}</div>
         </div>
         <div>
-          <h2 className="text-[32px] leading-[1.1] tracking-tight text-white md:text-[44px]"><span className="font-display">Awards</span></h2>
+          <h2 {...fade(isVisible, 0.08)} className="text-[32px] leading-[1.1] tracking-tight text-white md:text-[44px]"><span className="font-display">Awards</span></h2>
           <div className="mt-10 space-y-4">{awards.map(renderItem)}</div>
         </div>
       </div>
@@ -389,7 +412,7 @@ const CertificationsSection = () => {
   )
 }
 
-const Footer = () => <><footer className="mx-auto flex max-w-[1200px] justify-end gap-10 px-6 py-12"><div className="flex gap-10"><ArrowUpRight /><div className="flex flex-col gap-3 text-base text-[#051A24]"><a href="#skills">Skills</a><a href="#projects">Projects</a><a href="#about">About</a></div><div className="flex flex-col gap-3 text-base text-[#051A24]"><a href="mailto:keieszero2412@gmail.com">Email</a><a href="https://www.linkedin.com/in/khanhtran2412/" target="_blank" rel="noreferrer">LinkedIn</a></div></div></footer><div className="mx-auto flex max-w-[1200px] justify-between px-6 py-4 text-sm text-[#051A24]"><span>Khánh Trần</span><span>Hanoi, Vietnam</span></div></>
+const Footer = () => <><footer className="animate-fade-in-up mx-auto flex max-w-[1200px] justify-end gap-10 px-6 py-12" style={{ animationDelay: '.2s' }}><div className="flex gap-10"><ArrowUpRight /><div className="flex flex-col gap-3 text-base text-[#051A24]"><a href="#skills">Skills</a><a href="#projects">Projects</a><a href="#about">About</a></div><div className="flex flex-col gap-3 text-base text-[#051A24]"><a href="mailto:keieszero2412@gmail.com">Email</a><a href="https://www.linkedin.com/in/khanhtran2412/" target="_blank" rel="noreferrer">LinkedIn</a></div></div></footer><div className="animate-fade-in-up mx-auto flex max-w-[1200px] justify-between px-6 py-4 text-sm text-[#051A24]" style={{ animationDelay: '.35s' }}><span>Khánh Trần</span><span>Hanoi, Vietnam</span></div></>
 
 export default function App() {
   return <main><PeriodicTableBackground /><div className="periodic-content relative z-10"><Hero /><PricingSection /><ProjectsSection /><SkillsMarquee /><CertificationsSection /><Footer /></div></main>

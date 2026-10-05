@@ -25,6 +25,12 @@ a:hover { opacity: .7; }
   overflow: hidden;
   pointer-events: none;
   background: radial-gradient(circle at 50% 35%, #173c49 0%, #071923 72%);
+  animation: backgroundPulse 10s ease-in-out infinite alternate;
+}
+.three-scene-background canvas {
+  background: #071923;
+  mix-blend-mode: screen;
+  opacity: .42;
 }
 .periodic-content {
   min-height: 100vh;
@@ -78,9 +84,9 @@ a:hover { opacity: .7; }
   transform: translateY(-3px);
 }
 .neon-card-accent {
-  background: linear-gradient(145deg, rgba(13, 58, 91, .68), rgba(5, 29, 55, .8));
-  border-color: rgba(72, 157, 204, .3);
-  box-shadow: inset 0 1px 0 rgba(150, 211, 244, .07), 0 10px 30px rgba(0, 0, 0, .2), 0 0 10px rgba(0, 116, 190, .04);
+  background: linear-gradient(145deg, rgba(3, 27, 42, .96), rgba(2, 14, 25, .98));
+  border-color: rgba(43, 181, 220, .42);
+  box-shadow: inset 0 1px 0 rgba(158, 249, 255, .12), 0 10px 30px rgba(0, 0, 0, .2), 0 0 18px rgba(0, 174, 255, .08);
 }
 .neon-card-contrast {
   background: linear-gradient(145deg, rgba(3, 27, 42, .96), rgba(2, 14, 25, .98));
@@ -126,6 +132,10 @@ a:hover { opacity: .7; }
   from { margin-top: -2px; }
   to { margin-top: 2px; }
 }
+@keyframes backgroundPulse {
+  from { background-position: 50% 35%; }
+  to { background-position: 58% 42%; }
+}
 @media (max-width: 700px) {
   .periodic-table { grid-template-rows: repeat(9, 28px); gap: 2px; margin-top: 4vh; }
   .periodic-element { border-radius: 2px; }
@@ -142,6 +152,7 @@ a:hover { opacity: .7; }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .animate-marquee { animation-play-state: paused; }
-  .skill-card, .skill-card-icon { transition: none; }
+  .animate-fade-in-up { animation: none; opacity: 1; transform: none; }
+  .skill-card, .skill-card-icon, .neon-card { transition: none; }
   .skill-card:hover { transform: none; }
 }
